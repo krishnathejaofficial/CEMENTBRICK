@@ -61,7 +61,9 @@ router.post('/', authenticate, requireAdmin('SUPER_ADMIN', 'INVENTORY_MANAGER'),
     const product = await prisma.product.create({
       data: {
         ...data,
-        pricingTiers: pricingTiers ? { create: pricingTiers } : undefined,
+        pricingTiers: pricingTiers ? {
+          create: pricingTiers.map(({ id, productId, createdAt, ...tier }) => tier)
+        } : undefined,
       },
       include: { pricingTiers: true },
     });
@@ -82,7 +84,9 @@ router.put('/:id', authenticate, requireAdmin('SUPER_ADMIN', 'INVENTORY_MANAGER'
       where: { id: req.params.id },
       data: {
         ...data,
-        pricingTiers: pricingTiers ? { create: pricingTiers } : undefined,
+        pricingTiers: pricingTiers ? {
+          create: pricingTiers.map(({ id, productId, createdAt, ...tier }) => tier)
+        } : undefined,
       },
       include: { category: true, pricingTiers: true },
     });
