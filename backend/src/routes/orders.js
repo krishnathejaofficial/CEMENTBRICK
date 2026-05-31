@@ -13,6 +13,11 @@ function generateOrderNumber() {
   return `BY-${year}-${rand}`;
 }
 
+function safeCoord(val, max) {
+  const n = Number(val);
+  return (val != null && isFinite(n) && Math.abs(n) <= max) ? n : null;
+}
+
 // POST /api/orders — create order (no login required)
 router.post('/', optionalAuth, async (req, res) => {
   try {
@@ -41,7 +46,8 @@ router.post('/', optionalAuth, async (req, res) => {
     const order = await prisma.order.create({
       data: {
         orderNumber: generateOrderNumber(),
-        userId: req.user?.id || null,
+        // Use Prisma relation connect syntax — avoids "Unknown argument userId" error
+        ...(req.user?.id ? { user: { connect: { id: req.user.id } } } : {}),
         customerName: customerName.trim(),
         customerPhone: customerPhone.trim(),
         customerEmail,
@@ -49,8 +55,9 @@ router.post('/', optionalAuth, async (req, res) => {
         deliveryLine2: delivery.line2 || null,
         deliveryCity: delivery.city || '',
         deliveryPincode: delivery.pincode,
-        deliveryLat: delivery.lat || null,
-        deliveryLng: delivery.lng || null,
+        // Only store valid geographic coordinates
+        deliveryLat: safeCoord(delivery.lat, 90),
+        deliveryLng: safeCoord(delivery.lng, 180),
         materialCost: pricing.materialCost,
         transportCost: pricing.transportCost,
         labourCost: pricing.labourCost,
@@ -88,7 +95,7 @@ router.post('/', optionalAuth, async (req, res) => {
   }
 });
 
-// GET /api/orders/my — customer's own orders
+// GET /api/orders/my — customer's own orders (requires login)
 router.get('/my', authenticate, async (req, res) => {
   try {
     const orders = await prisma.order.findMany({
@@ -102,23 +109,23 @@ router.get('/my', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/orders/track/:orderNumber — track by order number (public)
+// GET /api/orders/track/:orderNumber — public order tracking by number
 router.get('/track/:orderNumber', async (req, res) => {
   try {
     const order = await prisma.order.findUnique({
       where: { orderNumber: req.params.orderNumber },
       include: { items: true, statusHistory: { orderBy: { createdAt: 'asc' } } },
     });
-    if (!order) return res.status(404).json({ error: 'Order not found' });
-    // Return limited info publicly
-    const { customerEmail, deliveryLat, deliveryLng, ...safe } = order;
+    if (!order) return res.status(404).json({ error: 'Order not found. Please check the order number.' });
+    // Strip private fields before returning publicly
+    const { customerEmail, deliveryLat, deliveryLng, userId, ...safe } = order;
     res.json(safe);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET /api/orders — admin: all orders
+// GET /api/orders — admin: list all orders with search & pagination
 router.get('/', authenticate, requireAdmin(), async (req, res) => {
   try {
     const { status, page = 1, limit = 20, search } = req.query;
@@ -136,7 +143,13 @@ router.get('/', authenticate, requireAdmin(), async (req, res) => {
     };
 
     const [orders, total] = await Promise.all([
-      prisma.order.findMany({ where, include: { items: true, vehicleType: true }, orderBy: { createdAt: 'desc' }, skip, take: parseInt(limit) }),
+      prisma.order.findMany({
+        where,
+        include: { items: true, vehicleType: true },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: parseInt(limit),
+      }),
       prisma.order.count({ where }),
     ]);
 
@@ -146,7 +159,7 @@ router.get('/', authenticate, requireAdmin(), async (req, res) => {
   }
 });
 
-// PATCH /api/orders/:id/status — admin update status
+// PATCH /api/orders/:id/status — admin update order status
 router.patch('/:id/status', authenticate, requireAdmin(), async (req, res) => {
   try {
     const { status, note } = req.body;

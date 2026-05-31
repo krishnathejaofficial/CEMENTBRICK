@@ -5,7 +5,8 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
-    "start": "node src/index.js",
+    "start": "npx prisma generate && node src/index.js",
+    "build": "npx prisma generate",
     "db:migrate": "npx prisma migrate dev",
     "db:seed": "node src/utils/seed.js",
     "db:studio": "npx prisma studio",

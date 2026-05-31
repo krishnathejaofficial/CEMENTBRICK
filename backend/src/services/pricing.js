@@ -42,14 +42,20 @@ async function calculateOrderPrice(items, delivery, options = {}) {
     : 0;
 
   const subtotal = materialCost + transportCost + labourResult.labourCost + labourFoodCost;
-  const gstAmount = parseFloat(((subtotal * gstRate) / 100).toFixed(2));
-  const totalAmount = parseFloat((subtotal + gstAmount).toFixed(2));
+  // Guard against NaN from bad geocoding — should never happen after maps.js fix
+  const safeMaterial   = isNaN(materialCost) ? 0 : materialCost;
+  const safeTransport  = isNaN(transportCost) ? 0 : transportCost;
+  const safeLabour     = isNaN(labourResult.labourCost) ? 0 : labourResult.labourCost;
+  const safeFood       = isNaN(labourFoodCost) ? 0 : labourFoodCost;
+  const safeSubtotal   = safeMaterial + safeTransport + safeLabour + safeFood;
+  const gstAmount = parseFloat(((safeSubtotal * gstRate) / 100).toFixed(2));
+  const totalAmount = parseFloat((safeSubtotal + gstAmount).toFixed(2));
 
   return {
-    materialCost: round(materialCost),
-    transportCost: round(transportCost),
-    labourCost: round(labourResult.labourCost),
-    labourFoodCost: round(labourFoodCost),
+    materialCost: round(safeMaterial),
+    transportCost: round(safeTransport),
+    labourCost: round(safeLabour),
+    labourFoodCost: round(safeFood),
     gstRate,
     gstAmount,
     totalAmount,
@@ -61,10 +67,10 @@ async function calculateOrderPrice(items, delivery, options = {}) {
     vehicleTypeId: vehicle?.id,
     productDetails,
     breakdown: {
-      material: `₹${round(materialCost)}`,
-      transport: `₹${round(transportCost)} (${distanceKm ? distanceKm + ' km' : zoneName})`,
-      labour: options.includeLabour ? `₹${round(labourResult.labourCost)} (${labourResult.labourCount} labourers)` : 'Not included',
-      food: options.includeLabourFood ? `₹${round(labourFoodCost)}` : 'Not included',
+      material: `₹${round(safeMaterial)}`,
+      transport: `₹${round(safeTransport)} (${distanceKm ? distanceKm.toFixed(1) + ' km' : zoneName})`,
+      labour: options.includeLabour ? `₹${round(safeLabour)} (${labourResult.labourCount} labourers)` : 'Not included',
+      food: options.includeLabourFood ? `₹${round(safeFood)}` : 'Not included',
       gst: `₹${gstAmount} (${gstRate}%)`,
       total: `₹${totalAmount}`,
     },
