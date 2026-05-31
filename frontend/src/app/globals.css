@@ -1,0 +1,127 @@
+/* src/app/globals.css */
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-display: 'Playfair Display', Georgia, serif;
+    --font-body: 'DM Sans', system-ui, sans-serif;
+    --color-brand: #4b5563;
+    --color-brand-dark: #1f2937;
+    --color-earth: #64748b;
+    --color-earth-dark: #334155;
+    --color-surface: #f9fafb;
+    --color-border: #cbd5e1;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-body), system-ui, sans-serif;
+  }
+
+  h1, h2, h3 {
+    font-family: var(--font-display), Georgia, serif;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-brand-600 hover:bg-brand-700 text-white font-semibold px-6 py-3 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md active:scale-95 inline-flex items-center gap-2;
+  }
+
+  .btn-secondary {
+    @apply border-2 border-brand-600 text-brand-600 hover:bg-brand-50 font-semibold px-6 py-3 rounded-lg transition-all duration-200 inline-flex items-center gap-2;
+  }
+
+  .btn-ghost {
+    @apply text-gray-600 hover:text-brand-600 hover:bg-brand-50 font-medium px-4 py-2 rounded-lg transition-all duration-200 inline-flex items-center gap-2;
+  }
+
+  .card {
+    @apply bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden;
+  }
+
+  .section-title {
+    @apply font-display text-3xl md:text-4xl font-bold text-gray-900 leading-tight;
+  }
+
+  .section-subtitle {
+    @apply text-lg text-gray-500 mt-3 font-body;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 rounded-lg border border-gray-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 outline-none transition-all duration-200 font-body text-gray-900 placeholder-gray-400;
+  }
+
+  .price-badge {
+    @apply bg-brand-50 text-brand-700 font-semibold px-3 py-1 rounded-full text-sm;
+  }
+
+  .status-badge {
+    @apply px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wide;
+  }
+
+  .admin-sidebar-link {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-gray-600 hover:bg-brand-50 hover:text-brand-700 transition-all duration-200 font-medium;
+  }
+
+  .admin-sidebar-link.active {
+    @apply bg-brand-600 text-white hover:bg-brand-700 hover:text-white;
+  }
+}
+
+/* Hero gradient */
+.hero-gradient {
+  background: linear-gradient(135deg, #1e293b 0%, #334155 30%, #475569 60%, #0f172a 100%);
+}
+
+/* Brick texture overlay */
+.brick-texture {
+  background-image: repeating-linear-gradient(
+    0deg, transparent, transparent 30px, rgba(0,0,0,0.03) 30px, rgba(0,0,0,0.03) 31px
+  ),
+  repeating-linear-gradient(
+    90deg, transparent, transparent 60px, rgba(0,0,0,0.03) 60px, rgba(0,0,0,0.03) 61px
+  );
+}
+
+/* Stats counter animation */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-count { animation: countUp 0.6s ease-out forwards; }
+
+/* Smooth page transitions */
+.page-enter {
+  animation: fadeSlideIn 0.3s ease-out;
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Admin layout */
+.admin-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+}
+
+@media (max-width: 768px) {
+  .admin-layout {
+    grid-template-columns: 1fr;
+  }
+}
