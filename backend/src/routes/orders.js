@@ -13,52 +13,69 @@ function generateOrderNumber() {
   return `BY-${year}-${rand}`;
 }
 
-// POST /api/orders — create order
+// POST /api/orders — create order (no login required)
 router.post('/', optionalAuth, async (req, res) => {
   try {
-    const { items, delivery, options, customerName, customerPhone, customerEmail, deliveryDate, notes } = req.body;
+    const {
+      items, delivery, options,
+      // Accept both naming conventions from frontend
+      customerName: cn, name: n,
+      customerPhone: cp, phone: p,
+      customerEmail: ce, email: e,
+      deliveryDate, notes,
+    } = req.body;
+
+    const customerName = cn || n || '';
+    const customerPhone = cp || p || '';
+    const customerEmail = ce || e || null;
+
+    // Validate required fields
+    if (!customerName?.trim()) return res.status(400).json({ error: 'Customer name is required' });
+    if (!customerPhone?.trim()) return res.status(400).json({ error: 'Customer phone number is required' });
+    if (!items?.length) return res.status(400).json({ error: 'At least one product item is required' });
+    if (!delivery?.pincode) return res.status(400).json({ error: 'Delivery PIN code is required' });
 
     // Recalculate price server-side (never trust client price)
-    const pricing = await calculateOrderPrice(items, delivery, options);
+    const pricing = await calculateOrderPrice(items, delivery, options || {});
 
     const order = await prisma.order.create({
       data: {
         orderNumber: generateOrderNumber(),
-        userId: req.user?.id,
-        customerName,
-        customerPhone,
+        userId: req.user?.id || null,
+        customerName: customerName.trim(),
+        customerPhone: customerPhone.trim(),
         customerEmail,
         deliveryLine1: delivery.line1 || '',
-        deliveryLine2: delivery.line2,
+        deliveryLine2: delivery.line2 || null,
         deliveryCity: delivery.city || '',
         deliveryPincode: delivery.pincode,
-        deliveryLat: delivery.lat,
-        deliveryLng: delivery.lng,
+        deliveryLat: delivery.lat || null,
+        deliveryLng: delivery.lng || null,
         materialCost: pricing.materialCost,
         transportCost: pricing.transportCost,
         labourCost: pricing.labourCost,
         labourFoodCost: pricing.labourFoodCost,
         gstAmount: pricing.gstAmount,
         totalAmount: pricing.totalAmount,
-        vehicleTypeId: pricing.vehicleTypeId,
-        labourCount: pricing.labourCount,
+        vehicleTypeId: pricing.vehicleTypeId || null,
+        labourCount: pricing.labourCount || 0,
         includeLabourFood: options?.includeLabourFood ?? false,
-        deliveryDistanceKm: pricing.distanceKm,
-        zoneId: pricing.zoneId,
+        deliveryDistanceKm: pricing.distanceKm || null,
+        zoneId: pricing.zoneId || null,
         deliveryDate: deliveryDate ? new Date(deliveryDate) : null,
-        notes,
+        notes: notes || null,
         items: {
-          create: pricing.productDetails.map(p => ({
-            productId: p.productId,
-            productName: p.name,
-            unit: p.unit,
-            quantity: p.quantity,
-            unitPrice: p.unitPrice,
-            subtotal: p.subtotal,
+          create: pricing.productDetails.map(pd => ({
+            productId: pd.productId,
+            productName: pd.name,
+            unit: pd.unit,
+            quantity: pd.quantity,
+            unitPrice: pd.unitPrice,
+            subtotal: pd.subtotal,
           })),
         },
         statusHistory: {
-          create: { status: 'PENDING', note: 'Order placed' },
+          create: { status: 'PENDING', note: 'Order placed by customer' },
         },
       },
       include: { items: true, vehicleType: true },
@@ -66,6 +83,7 @@ router.post('/', optionalAuth, async (req, res) => {
 
     res.status(201).json({ order, pricing });
   } catch (err) {
+    console.error('Order creation error:', err.message);
     res.status(400).json({ error: err.message });
   }
 });
@@ -84,7 +102,7 @@ router.get('/my', authenticate, async (req, res) => {
   }
 });
 
-// GET /api/orders/:orderNumber — track by order number (public)
+// GET /api/orders/track/:orderNumber — track by order number (public)
 router.get('/track/:orderNumber', async (req, res) => {
   try {
     const order = await prisma.order.findUnique({

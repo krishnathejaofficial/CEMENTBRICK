@@ -57,15 +57,22 @@ router.get('/:slug', async (req, res) => {
 // POST /api/products — admin only
 router.post('/', authenticate, requireAdmin('SUPER_ADMIN', 'INVENTORY_MANAGER'), async (req, res) => {
   try {
-    const { pricingTiers, category, createdAt, updatedAt, id, ...data } = req.body;
+    const { pricingTiers, category, orderItems, _count, createdAt, updatedAt, id, ...data } = req.body;
+    if (data.basePrice !== undefined) data.basePrice = parseFloat(data.basePrice) || 0;
+    if (data.weight !== undefined) data.weight = parseFloat(data.weight) || 0;
+    if (data.sortOrder !== undefined) data.sortOrder = parseInt(data.sortOrder) || 0;
     const product = await prisma.product.create({
       data: {
         ...data,
-        pricingTiers: pricingTiers ? {
-          create: pricingTiers.map(({ id, productId, createdAt, ...tier }) => tier)
+        pricingTiers: pricingTiers?.length ? {
+          create: pricingTiers.map(({ id: _id, productId: _pid, createdAt: _ca, ...tier }) => ({
+            minQty: parseInt(tier.minQty) || 0,
+            maxQty: tier.maxQty ? parseInt(tier.maxQty) : null,
+            pricePerUnit: parseFloat(tier.pricePerUnit) || 0,
+          }))
         } : undefined,
       },
-      include: { pricingTiers: true },
+      include: { category: true, pricingTiers: true },
     });
     res.status(201).json(product);
   } catch (err) {
@@ -76,7 +83,12 @@ router.post('/', authenticate, requireAdmin('SUPER_ADMIN', 'INVENTORY_MANAGER'),
 // PUT /api/products/:id — admin only
 router.put('/:id', authenticate, requireAdmin('SUPER_ADMIN', 'INVENTORY_MANAGER'), async (req, res) => {
   try {
-    const { pricingTiers, category, createdAt, updatedAt, id, ...data } = req.body;
+    // Strip ALL relation & readonly fields
+    const { pricingTiers, category, orderItems, _count, createdAt, updatedAt, id, ...data } = req.body;
+    if (data.basePrice !== undefined) data.basePrice = parseFloat(data.basePrice) || 0;
+    if (data.weight !== undefined) data.weight = parseFloat(data.weight) || 0;
+    if (data.sortOrder !== undefined) data.sortOrder = parseInt(data.sortOrder) || 0;
+
     // Delete old tiers and recreate
     await prisma.pricingTier.deleteMany({ where: { productId: req.params.id } });
 
@@ -84,8 +96,12 @@ router.put('/:id', authenticate, requireAdmin('SUPER_ADMIN', 'INVENTORY_MANAGER'
       where: { id: req.params.id },
       data: {
         ...data,
-        pricingTiers: pricingTiers ? {
-          create: pricingTiers.map(({ id, productId, createdAt, ...tier }) => tier)
+        pricingTiers: pricingTiers?.length ? {
+          create: pricingTiers.map(({ id: _id, productId: _pid, createdAt: _ca, ...tier }) => ({
+            minQty: parseInt(tier.minQty) || 0,
+            maxQty: tier.maxQty ? parseInt(tier.maxQty) : null,
+            pricePerUnit: parseFloat(tier.pricePerUnit) || 0,
+          }))
         } : undefined,
       },
       include: { category: true, pricingTiers: true },
